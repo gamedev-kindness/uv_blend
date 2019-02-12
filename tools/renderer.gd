@@ -20,6 +20,15 @@ func substract_image(img: Image, base: Image) -> Image:
 	img.unlock()
 	result.unlock()
 	return result
+func lopass(raster):
+	for k in range(1, tex_width - 1):
+		for l in range(1, tex_width - 1):
+			var px = Vector3()
+			for v in range(-1, 2):
+				for u in range(-1, 2):
+					px += raster[tex_width * k + tex_width * v + l + u]
+			raster[tex_width * k + l] = px * (1.0 / 9.0)
+
 func raster2png(raster: Array, rect_size: Vector2) -> Image:
 	var result : = Image.new()
 	result.create(rect_size.x, rect_size.y, false, Image.FORMAT_RGBF)
@@ -33,6 +42,8 @@ func substract_raster(raster: Array, base: Array) -> Array:
 	var result = raster.duplicate(true)
 	for k in range(raster.size()):
 		result[k] = raster[k] - base[k]
+	for i in range(8):
+		lopass(result)
 	return result
 
 func rasterize_triangle(raster: Array, polygon: Array, colors: Array, rect_size: Vector2) -> void:
@@ -80,18 +91,21 @@ func rasterize_triangle(raster: Array, polygon: Array, colors: Array, rect_size:
 		queue.push_back([new_poly1, new_colors1])
 		queue.push_back([new_poly2, new_colors2])
 
-func build(mesh: ArrayMesh, rect_size: Vector2) -> Array:
-	var raster = []
-	raster.resize(rect_size.x * rect_size.y)
-	for k in range(raster.size()):
-		raster[k] = Vector3()
+onready var mutex = Mutex.new()
+func build_arrays(mesh: ArrayMesh, rect_size: Vector2) -> Array:
+	var polygons = []
+	var color_data = []
+	print("build")
 	var mdt: = MeshDataTool.new()
 	mdt.create_from_surface(mesh, 0)
+	print("mdt")
 	var aabb = AABB()
-	print("rendering vertices: ", mdt.get_vertex_count())
-	for k in range(mdt.get_vertex_count()):
+	var vertex_count = mdt.get_vertex_count()
+	var face_count = mdt.get_face_count()
+	print("rendering vertices: ", vertex_count)
+	for k in range(vertex_count):
 		aabb = aabb.expand(mdt.get_vertex(k))
-	for k in range(mdt.get_face_count()):
+	for k in range(face_count):
 		var polygon = []
 		var fcolors = []
 		for h in range(3):
@@ -100,12 +114,28 @@ func build(mesh: ArrayMesh, rect_size: Vector2) -> Array:
 			var uv = mdt.get_vertex_uv(e) * rect_size
 			polygon.push_back(uv)
 			fcolors.push_back(mdt.get_vertex(e))
-		print("polygon: ", k, " ", mdt.get_face_count())
-		rasterize_triangle(raster, polygon, fcolors, rect_size)
+		polygons.push_back(polygon)
+		color_data.push_back(fcolors)
+#		if k % 100 == 0:
+#			print("polygon: ", k, " ", mdt.get_face_count())
+#		print("polygon: ", k, " ", mdt.get_face_count())
+#		rasterize_triangle(raster, polygon, fcolors, rect_size)
+	return [polygons, color_data]
+func build_triangles(polygons, color_data, rect_size):
+	var raster = []
+	raster.resize(rect_size.x * rect_size.y)
+	for k in range(raster.size()):
+		raster[k] = Vector3()
+	for r in range(polygons.size()):
+		rasterize_triangle(raster, polygons[r], color_data[r], rect_size)
+		if r % 10 == 0:
+			print("polygon: ", r, " of ", polygons.size())
 	return raster
 
 func thread_runner(userdata):
-	var raster = build(userdata, Vector2(tex_width, tex_width))
+	var raster = build_triangles(userdata[0], userdata[1], Vector2(tex_width, tex_width))
+	for i in range(8):
+		lopass(raster)
 	return raster
 func _ready():
 	var meshes = {
@@ -122,11 +152,18 @@ func _ready():
 			"mesh": load("res://obj/male_data.obj")
 		}
 	}
+	print("creating threads")
+	for k in meshes.keys():
+		print(k)
+		meshes[k].arrays = build_arrays(meshes[k].mesh, Vector2(tex_width, tex_width))
+	print("arrays created")
 	for k in meshes.keys():
 		var thread = Thread.new()
-		thread.start(self, "thread_runner", meshes[k].mesh)
+		thread.start(self, "thread_runner", meshes[k].arrays)
 		meshes[k].thread = thread
+	print("created threads")
 	for k in meshes.keys():
+		print("thread: ", k)
 		var thread = meshes[k].thread
 		var raster = thread.wait_to_finish()
 		var img: Image = Image.new()
