@@ -5,27 +5,28 @@ extends Spatial
 # var b = "text"
 
 # Called when the node enters the scene tree for the first time.
-var tex_width = 1024
-var male_raster = []
-var female_raster = []
-var rect_size = Vector2(tex_width, tex_width)
+var male_raster = {}
+var female_raster = {}
 var orig_mesh: ArrayMesh
 func update_mesh(value, who):
 	var mdt = MeshDataTool.new()
 	mdt.create_from_surface(orig_mesh, 0)
+	print(who, ": ", value)
 	if who == "male":
+		var rect_size = male_raster.size
 		for k in range(mdt.get_vertex_count()):
 			var uv = mdt.get_vertex_uv(k)
 			var coords = uv * rect_size
 			var v = mdt.get_vertex(k)
-			v += male_raster[coords.y * rect_size.x + coords.x] * value
+			v += male_raster.raster[coords.y * rect_size.x + coords.x] * value
 			mdt.set_vertex(k, v)
 	elif who == "female":
+		var rect_size = female_raster.size
 		for k in range(mdt.get_vertex_count()):
 			var uv = mdt.get_vertex_uv(k)
 			var coords = uv * rect_size
 			var v = mdt.get_vertex(k)
-			v += female_raster[coords.y * rect_size.x + coords.x] * value
+			v += female_raster.raster[coords.y * rect_size.x + coords.x] * value
 			mdt.set_vertex(k, v)
 	var mesh = ArrayMesh.new()
 	$MeshInstance.hide()

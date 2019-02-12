@@ -1,12 +1,6 @@
 extends Node
 
-# Declare member variables here. Examples:
-# var a = 2
-# var b = "text"
-
-# Called when the node enters the scene tree for the first time.
-
-var tex_width = 1024
+var tex_width = 512
 
 func substract_image(img: Image, base: Image) -> Image:
 	var result: Image = Image.new()
@@ -153,26 +147,8 @@ func _ready():
 		img.save_png("res://" + k + "-base.png")
 		var fd = File.new()
 		fd.open("res://" + k + "-base.raster", File.WRITE)
-		fd.store_var(raster)
+		var raster_data = {"name": k, "raster": raster, "size": Vector2(tex_width, tex_width)}
+		fd.store_var(raster_data)
 		fd.close()
-#	var male_base_raster = substract_raster(meshes.male.raster, meshes.base.raster)
-#	var female_base_raster = substract_raster(meshes.female.raster, meshes.base.raster)
-#	var male_base = raster2png(male_base_raster, Vector2(tex_width, tex_width))
-#	var female_base = raster2png(female_base_raster, Vector2(tex_width, tex_width))
-#	var fd_male_base = File.new()
-#	fd_male_base.open("res://male-base.raster", File.WRITE)
-#	fd_male_base.store_var(male_base_raster)
-#	fd_male_base.close()
-#	var fd_female_base = File.new()
-#	fd_female_base.open("res://female-base.raster", File.WRITE)
-#	fd_female_base.store_var(female_base_raster)
-#	fd_female_base.close()
-#	male_base.save_png("res://male-base.png")
-#	female_base.save_png("res://female-base.png")
 
 	print("all done")
-	
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-#func _process(delta):
-#	pass
