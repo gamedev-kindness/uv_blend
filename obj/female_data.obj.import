@@ -1,0 +1,18 @@
+[remap]
+
+importer="wavefront_obj"
+type="Mesh"
+path="res://.import/female_data.obj-a0db53c61601ce0f40c36090341dcc88.mesh"
+
+[deps]
+
+files=[ "res://.import/female_data.obj-a0db53c61601ce0f40c36090341dcc88.mesh" ]
+
+source_file="res://obj/female_data.obj"
+dest_files=[ "res://.import/female_data.obj-a0db53c61601ce0f40c36090341dcc88.mesh", "res://.import/female_data.obj-a0db53c61601ce0f40c36090341dcc88.mesh" ]
+
+[params]
+
+generate_tangents=true
+scale_mesh=Vector3( 1, 1, 1 )
+optimize_mesh=true
