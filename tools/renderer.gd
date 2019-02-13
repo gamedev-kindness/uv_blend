@@ -1,6 +1,7 @@
 extends Node
 
 var tex_width = 512
+var lopass_count = 2
 
 func substract_image(img: Image, base: Image) -> Image:
 	var result: Image = Image.new()
@@ -42,7 +43,7 @@ func substract_raster(raster: Array, base: Array) -> Array:
 	var result = raster.duplicate(true)
 	for k in range(raster.size()):
 		result[k] = raster[k] - base[k]
-	for i in range(8):
+	for i in range(lopass_count):
 		lopass(result)
 	return result
 
@@ -128,17 +129,17 @@ func build_triangles(polygons, color_data, rect_size):
 		raster[k] = Vector3()
 	for r in range(polygons.size()):
 		rasterize_triangle(raster, polygons[r], color_data[r], rect_size)
-		if r % 10 == 0:
+		if r % 100 == 0:
 			print("polygon: ", r, " of ", polygons.size())
 	return raster
 
 func thread_runner(userdata):
-	var raster = build_triangles(userdata[0], userdata[1], Vector2(tex_width, tex_width))
-	for i in range(8):
+	var raster = build_triangles(userdata.arrays[0], userdata.arrays[1], Vector2(tex_width, tex_width))
+	for i in range(lopass_count):
 		lopass(raster)
+	call_deferred("finish_thread", userdata.id)
 	return raster
-func _ready():
-	var meshes = {
+onready	var meshes = {
 		"base": {
 			"path": "res://base.png",
 			"mesh": load("res://obj/base_data.obj")
@@ -152,6 +153,12 @@ func _ready():
 			"mesh": load("res://obj/male_data.obj")
 		}
 	}
+var jobs = 0
+func finish_thread(id):
+	var raster = meshes[id].thread.wait_to_finish()
+	meshes[id].raster = raster
+	jobs -= 1
+func _ready():
 	print("creating threads")
 	for k in meshes.keys():
 		print(k)
@@ -159,13 +166,17 @@ func _ready():
 	print("arrays created")
 	for k in meshes.keys():
 		var thread = Thread.new()
-		thread.start(self, "thread_runner", meshes[k].arrays)
+		jobs += 1
 		meshes[k].thread = thread
+		thread.start(self, "thread_runner", {"arrays": meshes[k].arrays, "id": k})
 	print("created threads")
+	while jobs > 0:
+		yield(get_tree(), "idle_frame")
 	for k in meshes.keys():
 		print("thread: ", k)
-		var thread = meshes[k].thread
-		var raster = thread.wait_to_finish()
+#		var thread = meshes[k].thread
+#		var raster = thread.wait_to_finish()
+		var raster = meshes[k].raster
 		var img: Image = Image.new()
 		img.create(tex_width, tex_width, false, Image.FORMAT_RGBF)
 		img.lock()
@@ -175,7 +186,7 @@ func _ready():
 		img.unlock()
 		img.save_png(meshes[k].path)
 		meshes[k].img = img
-		meshes[k].raster = raster
+#		meshes[k].raster = raster
 	for k in meshes.keys():
 		if k == "base":
 			continue
