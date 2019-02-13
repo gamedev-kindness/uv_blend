@@ -1,6 +1,6 @@
 extends Node
 
-var tex_width = 512
+var tex_width = 1024
 var lopass_count = 2
 
 func substract_image(img: Image, base: Image) -> Image:
